@@ -4,28 +4,29 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
-public class App {
+import static spark.Spark.*;
+
+public class WebService {
     public static void main(String[] args) throws IOException, SQLException {
 
-    System.out.println("Descargando remotos...");
-    CargadorRemoto cargadorRemoto = new CargadorRemoto();
-    String url = "https://gist.githubusercontent.com/CAPi0807/9035f8ca9e83f3d82aac644ae51def2e/raw/b8b803fff524d62b07e11e789fe0305a171c6459/empleados.csv";
+        System.out.println("Iniciando servicio..");
 
-    List<Empleado> datosRemotos = cargadorRemoto.cargar(url);
+        GestorDB gdb = new GestorDB();
+        List<Empleado> empleados = gdb.cargarTodos();
 
-    System.out.println("Guardando en BD...");
-    GestorDB gestorDB = new GestorDB();
-    gestorDB.guardarTodos(datosRemotos);
+        port(8080);
 
-    System.out.println("leyendo BD...");
-    List<Empleado> empleadosBD = gestorDB.cargarTodos();
+        HistogramAdapter adapter = new HistogramAdapter();
 
-    System.out.println("Graficando...");
-    HistogramGenerator histogramGenerator = new HistogramGenerator();
-    Histogram histogram = histogramGenerator.compute(empleadosBD, Empleado::departamento);
+        get("/histograma", (request, response) -> {
+            response.type("application/json");
 
-    MainFrame mainFrame = new MainFrame();
-    mainFrame.mostrarHistograma(histogram);
+            String paramAttr = request.queryParams("atributo");
+            if (paramAttr == null) paramAttr = "departamento";
 
+            return adapter.adapt(empleados, paramAttr);
+        });
+
+        System.out.println("Servicio listo en http://localhost:8080/histograma?atributo=departamento");
     }
 }
